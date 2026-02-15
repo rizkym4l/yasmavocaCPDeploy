@@ -175,7 +175,7 @@ const HeroSection = () => {
         <div className="animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white/90 text-sm font-medium mb-6">
             <span className="w-2 h-2 rounded-full bg-[#c4a962] animate-pulse" />
-            Kebun Alpukat Premium Sukabumi
+            Kebun Alpukat Premium Sukakami
           </span>
         </div>
 
