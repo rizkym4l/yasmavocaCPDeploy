@@ -1,281 +1,392 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ChevronDown, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ArrowRight, Leaf, Award, Truck, Shield } from 'lucide-react';
 import { companyInfo, socialMedia } from '../data/mock';
 
+/* ─── Intersection Observer hook ─── */
+const useInView = (options = {}) => {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setInView(true); obs.disconnect(); }
+    }, { threshold: 0.2, ...options });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
+};
+
+/* ─── Animated counter ─── */
+const useCounter = (target, active, duration = 1800) => {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    let start = null;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.floor(eased * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [active, target, duration]);
+  return val;
+};
+
+/* ─── Fade-in wrapper ─── */
+const FadeIn = ({ children, delay = 0, direction = 'up', className = '' }) => {
+  const [ref, inView] = useInView();
+  const transforms = {
+    up: 'translateY(40px)',
+    left: 'translateX(-40px)',
+    right: 'translateX(40px)',
+    none: 'none',
+  };
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: inView ? 1 : 0,
+        transform: inView ? 'none' : transforms[direction],
+        transition: `opacity 0.75s ease, transform 0.75s ease`,
+        transitionDelay: `${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/* ─── Main Component ─── */
 const HeroSection = () => {
   const [scrollY, setScrollY] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const audioRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+  const [statsRef, statsInView] = useInView();
+
+  const yearsCount = useCounter(5, statsInView);
+  const satisfactionCount = useCounter(100, statsInView);
+  const hectaresCount = useCounter(50, statsInView);
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const timer = setTimeout(() => setMounted(true), 80);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Initialize audio
   useEffect(() => {
-    audioRef.current = new Audio('https://www.soundjay.com/nature/sounds/forest-1.mp3');
-    audioRef.current.loop = true;
-    audioRef.current.volume = 0.3;
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const toggleAudio = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(e => console.log('Audio play failed:', e));
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleSmoothScroll = (e, targetId) => {
+  const smoothScroll = (e, id) => {
     e.preventDefault();
-    const element = document.getElementById(targetId);
-    if (element) {
-      const headerOffset = 80;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+    const el = document.getElementById(id);
+    if (el) {
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.pageYOffset - 80, behavior: 'smooth' });
     }
   };
 
-  // Floating leaves data - now avocados
-  const floatingItems = [
-    { id: 1, size: 80, left: '5%', top: '10%', delay: '0s', duration: '12s' },
-    { id: 2, size: 60, left: '15%', top: '60%', delay: '2s', duration: '15s' },
-    { id: 3, size: 100, left: '75%', top: '20%', delay: '4s', duration: '18s' },
-    { id: 4, size: 70, left: '85%', top: '70%', delay: '1s', duration: '14s' },
-    { id: 5, size: 50, left: '45%', top: '80%', delay: '3s', duration: '16s' },
+  const partners = ['Petani Sukabumi', 'Agro Fresh', 'Green Market', 'Organic Indonesia', 'Farm Direct'];
+
+  const stats = [
+    {
+      value: satisfactionCount,
+      suffix: '%',
+      label: 'Kepuasan Pelanggan',
+      desc: 'Kami menghadirkan alpukat segar yang dipercaya oleh ribuan pelanggan di seluruh Indonesia.',
+    },
+    {
+      value: yearsCount,
+      suffix: '+',
+      label: 'Tahun Pengalaman',
+      desc: 'Berpengalaman sejak 2018, kami terus berinovasi dalam budidaya alpukat Miki premium.',
+    },
+    {
+      value: hectaresCount,
+      suffix: '+',
+      label: 'Hektar Kebun',
+      desc: 'Lahan luas di dataran tinggi Sukabumi dengan ketinggian 800 mdpl yang ideal.',
+    },
   ];
 
-  return (
-    <section
-      id="beranda"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
-    >
-      {/* Parallax Background Layers */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=1920&q=80)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          transform: `translateY(${scrollY * 0.3}px) scale(${1 + scrollY * 0.0003})`,
-        }}
-      />
-      
-      {/* Second Parallax Layer - Large Avocado Right */}
-      <div
-        className="absolute z-5 hidden lg:block"
-        style={{
-          right: '-5%',
-          top: '10%',
-          width: '45%',
-          height: '80%',
-          backgroundImage: 'url(https://images.unsplash.com/photo-1601039641847-7857b994d704?w=800&q=80)',
-          backgroundSize: 'contain',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          opacity: 0.25,
-          transform: `translateY(${scrollY * 0.15}px) translateX(${scrollY * 0.05}px)`,
-        }}
-      />
-      
-      {/* Third Parallax Layer - Avocado Left */}
-      <div
-        className="absolute z-5 hidden lg:block"
-        style={{
-          left: '-8%',
-          bottom: '5%',
-          width: '35%',
-          height: '70%',
-          backgroundImage: 'url(https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&q=80)',
-          backgroundSize: 'contain',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          opacity: 0.2,
-          transform: `translateY(${scrollY * -0.1}px) rotate(${scrollY * 0.02}deg)`,
-        }}
-      />
-      
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 z-10 gradient-hero" />
-      
-      {/* Animated Pattern Overlay */}
-      <div className="absolute inset-0 z-15 opacity-10">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="leafPattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-              <path
-                d="M50 10 Q60 30 50 50 Q40 30 50 10"
-                fill="none"
-                stroke="white"
-                strokeWidth="0.5"
-                className="animate-pulse-soft"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#leafPattern)" />
-        </svg>
-      </div>
+  const featureCards = [
+    { icon: <Leaf className="w-5 h-5" />, title: '100% Fresh', desc: 'Dipetik langsung dari kebun' },
+    { icon: <Award className="w-5 h-5" />, title: 'Kualitas Premium', desc: 'Seleksi ketat grade A' },
+    { icon: <Truck className="w-5 h-5" />, title: 'Pengiriman Cepat', desc: 'Ke seluruh Indonesia' },
+    { icon: <Shield className="w-5 h-5" />, title: 'Garansi Segar', desc: 'Uang kembali jika tidak sesuai' },
+  ];
 
-      {/* Floating Avocados Animation - Smaller decorative */}
-      <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none">
-        {floatingItems.map((item) => (
+  /* transition helper */
+  const t = (delay = 0) => ({
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? 'none' : 'translateY(32px)',
+    transition: `opacity 0.8s ease, transform 0.8s ease`,
+    transitionDelay: `${delay}s`,
+  });
+
+  return (
+    <>
+      {/* ═══════════════════════ HERO ═══════════════════════ */}
+      <section
+        id="beranda"
+        className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
+      >
+        {/* Parallax BG */}
+        <div
+          className="absolute inset-0 z-0 will-change-transform"
+          style={{
+            backgroundImage:
+              'url(https://images.unsplash.com/photo-1560493676-04071c5f467b?w=1920&q=80)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            transform: `translateY(${scrollY * 0.35}px) scale(${1 + scrollY * 0.00025})`,
+          }}
+        />
+
+        {/* Dark gradient overlay */}
+        <div
+          className="absolute inset-0 z-10"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(12,28,8,0.80) 0%, rgba(20,46,12,0.72) 55%, rgba(10,22,6,0.90) 100%)',
+          }}
+        />
+
+        {/* Subtle grid lines */}
+        <div
+          className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+            backgroundSize: '80px 80px',
+          }}
+        />
+
+        {/* ── Main content ── */}
+        <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center pt-32 pb-40">
+
+          {/* Badge */}
+          <div style={t(0.1)}>
+            <span
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium mb-8 tracking-wide"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                backdropFilter: 'blur(14px)',
+                color: 'rgba(255,255,255,0.88)',
+                border: '1px solid rgba(255,255,255,0.18)',
+              }}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#9fd350] animate-pulse" />
+              Kebun Alpukat Premium Sukabumi
+            </span>
+          </div>
+
+          {/* Heading */}
+          <div style={t(0.28)}>
+            <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-white leading-[1.08] mb-6">
+              Tumbuh Bersama
+              <br />
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #9fd350 0%, #c5e87a 50%, #9fd350 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                Alpukat Premium
+              </span>
+              <br />
+              Sukabumi
+            </h1>
+          </div>
+
+          {/* Subtitle */}
+          <div style={t(0.46)}>
+            <p className="text-lg sm:text-xl text-white/65 max-w-xl mx-auto mb-12 font-light leading-relaxed">
+              {companyInfo.description}
+            </p>
+          </div>
+
+          {/* CTA */}
+          <div style={t(0.60)}>
+            <a
+              href={socialMedia.whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-3 px-9 py-4 rounded-full font-semibold text-base text-white transition-all duration-300 hover:scale-105 relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #4f8c25 0%, #6fb032 100%)',
+                boxShadow: '0 8px 32px rgba(79,140,37,0.45)',
+              }}
+            >
+              {/* shimmer sweep */}
+              <span
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'heroBtnShimmer 2.8s ease-in-out infinite',
+                }}
+              />
+              Jelajahi Kebun Kami
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+            </a>
+          </div>
+
+          {/* Feature pills */}
+          <div style={t(0.76)} className="mt-14 flex flex-wrap justify-center gap-3">
+            {featureCards.map((f, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm text-white/70"
+                style={{
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <span className="text-[#9fd350]">{f.icon}</span>
+                {f.title}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Partner logos bar ── */}
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 overflow-hidden"
+          style={t(0.95)}
+        >
           <div
-            key={item.id}
-            className="absolute animate-float"
             style={{
-              left: item.left,
-              top: item.top,
-              animationDelay: item.delay,
-              animationDuration: item.duration,
+              background: 'rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(20px)',
+              borderTop: '1px solid rgba(255,255,255,0.10)',
             }}
           >
-            <div 
-              className="rounded-full bg-[#567d46]/40 backdrop-blur-sm"
-              style={{
-                width: item.size,
-                height: item.size,
-                boxShadow: '0 8px 32px rgba(45, 90, 39, 0.3)',
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Noise Texture */}
-      <div className="absolute inset-0 z-25 noise-overlay pointer-events-none" />
-
-      {/* Content */}
-      <div className="relative z-30 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Badge */}
-        <div className="animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white/90 text-sm font-medium mb-6">
-            <span className="w-2 h-2 rounded-full bg-[#c4a962] animate-pulse" />
-            Kebun Alpukat Premium Sukakami
-          </span>
-        </div>
-
-        {/* Main Title */}
-        <h1 
-          className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 animate-fade-in-up opacity-0"
-          style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
-        >
-          <span className="block">Selamat Datang di</span>
-          <span className="text-gradient-gold">{companyInfo.name}</span>
-        </h1>
-
-        {/* Subtitle */}
-        <p 
-          className="text-xl sm:text-2xl text-white/80 max-w-2xl mx-auto mb-10 font-light animate-fade-in-up opacity-0"
-          style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}
-        >
-          {companyInfo.description}
-        </p>
-
-        {/* CTA Buttons */}
-        <div 
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up opacity-0"
-          style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
-        >
-          <a
-            href={socialMedia.whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group px-8 py-4 bg-white text-[#2d5a27] rounded-full font-semibold text-lg hover:bg-[#f7f5f2] transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center gap-2"
-          >
-            Pesan Alpukat
-            <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
-          </a>
-          <a
-            href="#produk"
-            onClick={(e) => handleSmoothScroll(e, 'produk')}
-            className="px-8 py-4 border-2 border-white/30 text-white rounded-full font-semibold text-lg hover:bg-white/10 transition-all duration-300 hover:scale-105 backdrop-blur-sm"
-          >
-            Lihat Produk
-          </a>
-        </div>
-
-        {/* Stats */}
-        <div 
-          className="mt-16 grid grid-cols-3 gap-8 max-w-xl mx-auto animate-fade-in-up opacity-0"
-          style={{ animationDelay: '1s', animationFillMode: 'forwards' }}
-        >
-          {[
-            { value: '5+', label: 'Tahun Pengalaman' },
-            { value: '1000+', label: 'Pelanggan Puas' },
-            { value: '50+', label: 'Hektar Kebun' },
-          ].map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-sm text-white/60">{stat.label}</div>
+            <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-center gap-8 flex-wrap">
+              {partners.map((p, i) => (
+                <span
+                  key={i}
+                  className="text-white/40 text-sm font-medium tracking-wider uppercase flex items-center gap-2 hover:text-white/70 transition-colors duration-300 cursor-default"
+                >
+                  <span className="w-1 h-1 rounded-full bg-white/25" />
+                  {p}
+                </span>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
 
-      {/* Audio Controls */}
-      <div className="absolute bottom-8 right-8 z-40 flex gap-2">
-        <button
-          onClick={toggleAudio}
-          className="p-3 rounded-full glass hover:bg-white/20 transition-all duration-300 group"
-          aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
-        >
-          {isPlaying ? (
-            <Pause className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-          ) : (
-            <Play className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-          )}
-        </button>
-        {isPlaying && (
-          <button
-            onClick={toggleMute}
-            className="p-3 rounded-full glass hover:bg-white/20 transition-all duration-300 group"
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
+        {/* Scroll indicator */}
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 hero-scroll-indicator">
+          <a
+            href="#tentang"
+            onClick={(e) => smoothScroll(e, 'tentang')}
+            className="text-white/40 hover:text-white/80 transition-colors duration-300 flex flex-col items-center gap-1"
           >
-            {isMuted ? (
-              <VolumeX className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-            ) : (
-              <Volume2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-            )}
-          </button>
-        )}
-      </div>
+            <span className="text-[10px] uppercase tracking-widest text-white/30">Scroll</span>
+            <ChevronDown className="w-6 h-6" />
+          </a>
+        </div>
+      </section>
 
-      {/* Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-40 animate-bounce">
-        <a 
-          href="#tentang" 
-          onClick={(e) => handleSmoothScroll(e, 'tentang')}
-          className="text-white/60 hover:text-white transition-colors"
-        >
-          <ChevronDown className="w-8 h-8" />
-        </a>
-      </div>
-    </section>
+      {/* ═══════════════════════ INNOVATING SECTION ═══════════════════════ */}
+      <section className="bg-white py-28 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 xl:gap-24 items-start">
+
+            {/* Left: heading + images */}
+            <div>
+              <FadeIn direction="left" delay={0}>
+                <p className="text-[#9fd350] text-sm font-semibold uppercase tracking-[0.18em] mb-4">
+                  Tentang Kami
+                </p>
+                <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#111e0c] leading-tight mb-6">
+                  INOVASI MASA DEPAN
+                  <br />
+                  <span className="text-[#2d5a27]">PERKEBUNAN</span>
+                </h2>
+                <p className="text-[#736c64] leading-relaxed max-w-md">
+                  {companyInfo.name} menggabungkan kearifan petani lokal dengan pendekatan modern untuk
+                  menghasilkan alpukat terbaik. Kami berkomitmen menyehatkan Indonesia satu buah alpukat
+                  pada satu waktu.
+                </p>
+              </FadeIn>
+
+              {/* Image grid */}
+              <FadeIn direction="left" delay={0.18} className="mt-10">
+                <div className="grid grid-cols-2 gap-4">
+                  <div
+                    className="rounded-2xl overflow-hidden group"
+                    style={{ aspectRatio: '4/3', boxShadow: '0 12px 40px rgba(45,90,39,0.15)' }}
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=500&q=80"
+                      alt="Kebun alpukat"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                    />
+                  </div>
+                  <div
+                    className="rounded-2xl overflow-hidden group mt-8"
+                    style={{ aspectRatio: '4/3', boxShadow: '0 12px 40px rgba(45,90,39,0.15)' }}
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=500&q=80"
+                      alt="Panen alpukat"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                    />
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
+
+            {/* Right: animated stats */}
+            <div ref={statsRef} className="flex flex-col gap-10 lg:pt-20">
+              {stats.map((s, i) => (
+                <FadeIn key={i} direction="right" delay={i * 0.14}>
+                  <div className="flex items-start gap-6 group">
+                    {/* Number */}
+                    <div
+                      className="text-6xl sm:text-7xl font-bold leading-none tabular-nums shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, #2d5a27, #5a9e40)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                      }}
+                    >
+                      {s.value}
+                      {s.suffix}
+                    </div>
+
+                    {/* Text */}
+                    <div className="pt-2">
+                      <div className="font-semibold text-[#111e0c] text-lg mb-1.5">{s.label}</div>
+                      <div className="text-[#736c64] text-sm leading-relaxed">{s.desc}</div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  {i < stats.length - 1 && (
+                    <div
+                      className="mt-10 h-px"
+                      style={{ background: 'linear-gradient(90deg, #e8f0e2, transparent)' }}
+                    />
+                  )}
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
   );
 };
 
